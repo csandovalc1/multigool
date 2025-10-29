@@ -1,14 +1,20 @@
 // src/config/db.js
 const mysql = require('mysql2/promise');
+
+function parseCA(raw) {
+  if (!raw) return undefined;
+  // Si viene con '\n' escapados, los convertimos a saltos reales
+  const hasEscaped = raw.includes('\\n');
+  return hasEscaped ? raw.replace(/\\n/g, '\n') : raw;
+}
+
 let pool;
 
 async function initPool() {
   if (pool) return pool;
 
-    const sslEnabled = String(process.env.DB_SSL).toLowerCase() === 'true';
-  const sslConfig = sslEnabled
-    ? (process.env.DB_CA ? { ca: process.env.DB_CA } : { rejectUnauthorized: true })
-    : undefined;
+  const sslEnabled = String(process.env.DB_SSL || '').toLowerCase() === 'true';
+  const ca = parseCA(process.env.DB_CA);
 
   pool = await mysql.createPool({
     host: process.env.DB_HOST,
@@ -21,7 +27,7 @@ async function initPool() {
     queueLimit: 0,
     namedPlaceholders: true,
     timezone: 'Z',
-    ssl: sslConfig
+    ssl: sslEnabled ? (ca ? { ca } : { rejectUnauthorized: true }) : undefined
   });
 
   // ===== SHIM request/input/query =====
