@@ -21,8 +21,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { files: 20, fileSize: 10 * 1024 * 1024 }, // hasta 20 fotos por tanda
+  limits: { files: 20, fileSize: 6 * 1024 * 1024 },
 });
+
 
 // LIST
 router.get('/', controller.list);
@@ -39,6 +40,20 @@ router.post('/:id/unpublish', controller.unpublish);
 
 // DELETE
 router.delete('/:id', controller.remove);
+
+router.post(
+  '/',
+  (req, res, next) => {
+    upload.array('fotos', 20)(req, res, (err) => {
+      if (err) {
+        // Errores típicos: 'File too large', 'Too many files', 'Unexpected field'
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
+  controller.create
+);
 
 
 module.exports = router;

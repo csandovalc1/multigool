@@ -48,6 +48,7 @@ exports.create = async (req, res) => {
     await model.bulkInsert(items);
     res.json({ ok: true, count: items.length });
   } catch (e) {
+     console.error('[GALERIA/create]', e);
     res.status(500).json({ error: e.message });
   }
 };
