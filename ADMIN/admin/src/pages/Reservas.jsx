@@ -224,6 +224,12 @@ export default function Reservas() {
     return (hours * rate).toFixed(2);
   }, [duration, mode]);
 
+  const currentCancha = useMemo(() => {
+  if (!slots || slots.length === 0) return null;
+  const safeIdx = Math.min(Math.max(0, canchaIdx), slots.length - 1);
+  return slots[safeIdx];
+}, [slots, canchaIdx]);
+
   const payload = {
     mode,
     date,
@@ -325,9 +331,17 @@ export default function Reservas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openCreate, date, mode, duration]);
 
-  useEffect(() => {
-    setCanchaIdx(0);
-  }, [slots]);
+useEffect(() => {
+  setCanchaIdx((i) => {
+    if (!slots || slots.length === 0) return 0;
+    return Math.min(Math.max(0, i), slots.length - 1);
+  });
+}, [slots]);
+
+// al cambiar la modalidad (F5/F7), resetea el carrusel a la primera cancha
+useEffect(() => {
+  setCanchaIdx(0);
+}, [mode]);
 
   const handleConfirm = async (form) => {
     if (!canConfirm) return;
@@ -637,10 +651,11 @@ export default function Reservas() {
               {["F5", "F7"].map((m) => (
                 <button
                   key={m}
-                  onClick={() => {
-                    setMode(m);
-                    setSel({ cancha_id: null, cancha_nombre: "", time: "" });
-                  }}
+onClick={() => {
+  setMode(m);
+  setSel({ cancha_id: null, cancha_nombre: "", time: "" });
+  setCanchaIdx(0); // reset inmediato para evitar frame con índice fuera de rango
+}}
                   className={`px-4 py-2 rounded-md border text-sm font-semibold ${
                     mode === m ? "bg-blue-50 border-blue-300" : "bg-white"
                   }`}
@@ -721,12 +736,12 @@ export default function Reservas() {
                         ←
                       </button>
 
-                      <div className="text-sm font-semibold">
-                        {slots[canchaIdx].cancha_nombre}{" "}
-                        <span className="text-neutral-500">
-                          ({canchaIdx + 1}/{slots.length})
-                        </span>
-                      </div>
+<div className="text-sm font-semibold">
+  {currentCancha?.cancha_nombre || "—"}{" "}
+  <span className="text-neutral-500">
+    ({Math.min(canchaIdx + 1, Math.max(1, slots.length))}/{slots.length})
+  </span>
+</div>
 
                       <button
                         className="px-2 py-1 rounded border text-sm disabled:opacity-40"
@@ -746,21 +761,23 @@ export default function Reservas() {
                       </div>
                       <button
                         onClick={() => {
-                          const g = slots[canchaIdx];
-                          setSel((s) =>
-                            s.cancha_id === g.cancha_id
-                              ? { cancha_id: null, cancha_nombre: "", time: "" }
-                              : { cancha_id: g.cancha_id, cancha_nombre: g.cancha_nombre, time: "" }
-                          );
-                        }}
+  const g = currentCancha;
+  if (!g || isClosed) return;
+  setSel((s) =>
+    s.cancha_id === g.cancha_id
+      ? { cancha_id: null, cancha_nombre: "", time: "" }
+      : { cancha_id: g.cancha_id, cancha_nombre: g.cancha_nombre, time: "" }
+  );
+}}
+
                         disabled={isClosed}
-                        className={`px-3 py-1 rounded-md text-sm border ${
-                          isClosed
-                            ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                            : sel.cancha_id === slots[canchaIdx].cancha_id
-                              ? "bg-blue-50 border-blue-300"
-                              : "bg-white hover:bg-neutral-50"
-                        }`}
+className={`px-3 py-1 rounded-md text-sm border ${
+  isClosed
+    ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
+    : sel.cancha_id === currentCancha?.cancha_id
+      ? "bg-blue-50 border-blue-300"
+      : "bg-white hover:bg-neutral-50"
+}`}
                         title={isClosed ? "Día cerrado" : "Seleccionar cancha"}
                       >
                         {isClosed
@@ -772,32 +789,32 @@ export default function Reservas() {
                     </div>
 
                     <div className="p-3 pt-0">
-                      {slots[canchaIdx].slots.length === 0 ? (
-                        <div className="text-sm text-neutral-500">Sin horarios disponibles.</div>
-                      ) : (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {slots[canchaIdx].slots.map((s) => (
-                            <Chip
-                              key={`${slots[canchaIdx].cancha_id}-${s.hora}`}
-                              active={
-                                sel.cancha_id === slots[canchaIdx].cancha_id &&
-                                sel.time === s.hora
-                              }
-                              onClick={() => {
-                                if (isClosed) return;
-                                const g = slots[canchaIdx];
-                                setSel({
-                                  cancha_id: g.cancha_id,
-                                  cancha_nombre: g.cancha_nombre,
-                                  time: s.hora,
-                                });
-                              }}
-                            >
-                              {s.hora} — {s.hasta}
-                            </Chip>
-                          ))}
-                        </div>
-                      )}
+{!currentCancha?.slots?.length ? (
+  <div className="text-sm text-neutral-500">Sin horarios disponibles.</div>
+) : (
+  <div className="mt-2 flex flex-wrap gap-2">
+    {currentCancha.slots.map((s) => (
+      <Chip
+        key={`${currentCancha.cancha_id}-${s.hora}`}
+        active={
+          sel.cancha_id === currentCancha.cancha_id &&
+          sel.time === s.hora
+        }
+        onClick={() => {
+          if (isClosed || !currentCancha) return;
+          setSel({
+            cancha_id: currentCancha.cancha_id,
+            cancha_nombre: currentCancha.cancha_nombre,
+            time: s.hora,
+          });
+        }}
+      >
+        {s.hora} — {s.hasta}
+      </Chip>
+    ))}
+  </div>
+)}
+
                     </div>
                   </div>
                 )}
