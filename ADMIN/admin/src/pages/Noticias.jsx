@@ -15,7 +15,7 @@ export default function Noticias() {
   const inputRef = useRef(null);
 
   const cargar = async () => {
-    const { data } = await api.get("/noticias");
+    const { data } = await api.get("/noticias?abs=1");
     setLista(data || []);
   };
   useEffect(() => { cargar(); }, []);

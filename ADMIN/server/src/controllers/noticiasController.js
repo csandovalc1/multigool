@@ -1,6 +1,7 @@
 // controllers/noticiasController.js
 const path = require('path');
 const model = require('../models/noticiasModel');
+const { relFromMulter, absUrl } = require('../utils/urls');
 
 function toGTString(dt) {
   if (!dt) return null;
