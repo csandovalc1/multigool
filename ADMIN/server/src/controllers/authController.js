@@ -9,11 +9,12 @@ const {
 
 const cookieOpts = {
   httpOnly: true,
-  sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'none',               // <— antes tenías 'lax'
+  secure: true,                   // en prod, sí o sí
   path: '/api/auth',
-  domain: process.env.COOKIE_DOMAIN || undefined
+  // domain: process.env.COOKIE_DOMAIN || undefined   // <— Quita el domain
 };
+
 
 function minutesLeft(dt) {
   const ms = new Date(dt).getTime() - Date.now();
