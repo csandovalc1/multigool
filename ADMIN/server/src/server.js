@@ -5,32 +5,40 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 
-const UPLOAD_DIR = path.join(__dirname, 'uploads', 'team-logos');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const ALLOWED_ORIGINS = [
-  process.env.FRONT_ORIGIN || 'http://localhost:5173',
-  process.env.FRONT_ORIGIN2 || 'http://localhost:5174',
-];
+const normalize = (u) => u ? u.replace(/\/$/, '') : u;
+const ALLOWLIST = [process.env.FRONT_ORIGIN, process.env.FRONT_ORIGIN2].filter(Boolean).map(normalize);
 
 const app = express();
 
+// Confía en el proxy de DO para X-Forwarded-* (cookies secure, IP real, etc.)
+app.set('trust proxy', 1);
+
+// DIRECTORIOS ESTÁTICOS
 app.use('/public', express.static(path.join(__dirname, 'public')));
+
+// ⚠️ Filesystem efímero en App Platform: /uploads se borra en redeploy.
+// Úsalo solo temporalmente o cambia a DO Spaces. Si igual lo usas:
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads', 'team-logos');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(cookieParser());
+
+// BODY PARSERS
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// CORS
+const ALLOWED_ORIGINS = [process.env.FRONT_ORIGIN, process.env.FRONT_ORIGIN2].filter(Boolean);
 app.use(cors({
   origin(origin, cb) {
-    // permite llamadas desde herramientas (sin origin) y desde tu front
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    return cb(new Error('CORS not allowed'));
+    const o = normalize(origin);
+    if (!o || ALLOWLIST.includes(o)) return cb(null, true);
+    cb(new Error('CORS not allowed'));
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
+app.use(cookieParser());
 
 // Rutas
 app.use('/api/torneos', require('./routes/torneoRoutes'));
@@ -49,16 +57,16 @@ app.use('/api/public', require('./routes/public'));
 app.use('/api/admin/cierres', require('./routes/adminCierresRoutes'));
 app.use('/api/noticias', require('./routes/noticiasRoutes'));
 app.use('/api/reportes', require('./routes/reportesRoutes'));
-app.use('/api/auth', require('./routes/authRoutes'));   
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/academia', require('./routes/academiaRoutes'));
 app.use('/api/galeria', require('./routes/galeriaRoutes'));
 
+// Healthcheck
+app.get('/health', (req, res) => res.status(200).json({ ok: true }));
 
 
+app.get('/health', (req, res) => res.status(200).json({ ok: true }));
 
-
-
-
-
+// Arranque
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server listo en puerto ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server listo en puerto ${PORT}`));

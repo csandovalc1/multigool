@@ -4,6 +4,12 @@ let pool;
 
 async function initPool() {
   if (pool) return pool;
+
+    const sslEnabled = String(process.env.DB_SSL).toLowerCase() === 'true';
+  const sslConfig = sslEnabled
+    ? (process.env.DB_CA ? { ca: process.env.DB_CA } : { rejectUnauthorized: true })
+    : undefined;
+
   pool = await mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -15,6 +21,7 @@ async function initPool() {
     queueLimit: 0,
     namedPlaceholders: true,
     timezone: 'Z',
+    ssl: sslConfig
   });
 
   // ===== SHIM request/input/query =====

@@ -9,6 +9,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
   },
+  "engines": {
+    "node": ">=20 <23"
+  },
   "dependencies": {
     "argon2": "^0.44.0",
     "cookie-parser": "^1.4.7",
