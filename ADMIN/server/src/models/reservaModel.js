@@ -203,13 +203,13 @@ exports.create = async ({
     const price_total = Number(Number(price_total_q || 0).toFixed(2));
 
     const insertSQL = `
-      INSERT INTO reservas (
+INSERT INTO reservas (
         cancha_id, fecha, hora_inicio, hora_fin, dur_minutos, notas,
         cliente_nombres, cliente_apellidos, cliente_email, cliente_telefono,
         price_total
       )
       VALUES (
-        :cid, :f, TIME(:hi), TIME(:hf), :dur, :notas,
+        :cid, :f, :hi, :hf, :dur, :notas,
         :n, :a, :e, :t,
         :pt
       )
@@ -279,11 +279,10 @@ exports.updateCore = async ({ id, cancha_id, fecha, hora_inicio, hora_fin, dur_m
     };
 
     let q = `
-      UPDATE reservas
       SET cancha_id=:cid,
           fecha=:f,
-          hora_inicio=TIME(:hi),
-          hora_fin=TIME(:hf),
+          hora_inicio=:hi,
+          hora_fin=:hf,
           dur_minutos=:dur`;
 
     if (Number.isFinite(Number(price_total_q))) {

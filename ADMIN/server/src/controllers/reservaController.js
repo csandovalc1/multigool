@@ -8,11 +8,17 @@ const { getPricePerHour }  = require('../config/pricing');
 // --------- helpers de tiempo ----------
 const pad2 = (n) => String(n).padStart(2,'0');
 const toSqlTime = (t) => {
-  if (t === null || t === undefined) return null;
-  const m = String(t).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  if (!m) return null;
-  return `${pad2(m[1])}:${m[2]}:${pad2(m[3] ?? '00')}`;
-};
+   if (t === null || t === undefined) return null;
+   // normaliza: quita espacios/nbps, reemplaza “:” unicode, etc.
+   const s = String(t)
+     .trim()
+     .replace(/\u00A0/g, ' ')     // NBSP -> space
+     .replace(/[：]/g, ':')        // fullwidth colon -> colon
+     .replace(/\s+/g, '');         // sin espacios
+   const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+   if (!m) return null;
+   return `${pad2(m[1])}:${m[2]}:${pad2(m[3] ?? '00')}`;
+ };
 const addMinutes = (hhmmOrHMS, mins) => {
   const s = toSqlTime(hhmmOrHMS);
   if (!s) return null;
@@ -464,6 +470,9 @@ exports.create = async (req,res) => {
     const rate = getPricePerHour(c.tipo_futbol); // c viene de getCancha()
     const hours = Math.max(0, Number(dur) / 60);
     const price_total_q = Number((hours * rate).toFixed(2));
+
+    console.log('[RESERVA:create] cancha_id=%s fecha=%s hora(raw)=%s -> hi=%s hf=%s dur=%s',
+   cancha_id, fecha, hora, hi, hf, dur);
 
     const created = await reservaModel.create({
       cancha_id: c.id,
