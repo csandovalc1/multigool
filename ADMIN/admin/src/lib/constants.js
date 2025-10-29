@@ -51,7 +51,7 @@ export const DAY_2025_06_12 = {
 
 export const API_BASE =
   import.meta.env.VITE_API_BASE ||
-  'http://localhost:3001';
+  'https://lionfish-app-wkapu.ondigitalocean.app';
 
 // Normaliza a URL absoluta para /uploads, /public, etc.
 export function absUrl(p) {
