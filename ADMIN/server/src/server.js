@@ -1,9 +1,14 @@
-require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
+
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
+
 
 const normalize = (u) => u ? u.replace(/\/$/, '') : u;
 const ALLOWLIST = [process.env.FRONT_ORIGIN, process.env.FRONT_ORIGIN2].filter(Boolean).map(normalize);
@@ -64,8 +69,6 @@ app.use('/api/galeria', require('./routes/galeriaRoutes'));
 // Healthcheck
 app.get('/health', (req, res) => res.status(200).json({ ok: true }));
 
-
-app.get('/health', (req, res) => res.status(200).json({ ok: true }));
 
 // Arranque
 const PORT = process.env.PORT || 3001;
