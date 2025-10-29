@@ -2,6 +2,8 @@
 const path = require('path');
 const fs = require('fs');
 const model = require('../models/galeriaModel');
+const { relFromMulter, absUrl } = require('../utils/urls');
+
 
 function toGTString(dt) {
   if (!dt) return null;
