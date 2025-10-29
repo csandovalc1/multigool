@@ -25,7 +25,13 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 // Úsalo solo temporalmente o cambia a DO Spaces. Si igual lo usas:
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads', 'team-logos');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '7d',
+  immutable: true,
+  setHeaders(res) {
+    res.setHeader('Access-Control-Allow-Origin', '*'); // si necesitas embebidos públicos
+  }
+}));
 
 // BODY PARSERS
 app.use(express.json({ limit: '2mb' }));

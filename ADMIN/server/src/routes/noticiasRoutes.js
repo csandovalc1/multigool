@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const controller = require('../controllers/noticiasController');
+const { sanitizeBase } = require('../utils/urls');
 
 const DIR = path.join(__dirname, '..', 'uploads', 'news');
 fs.mkdirSync(DIR, { recursive: true });
@@ -12,12 +13,11 @@ fs.mkdirSync(DIR, { recursive: true });
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, DIR),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || '').toLowerCase();
-    const base = path.basename(file.originalname || 'img', ext)
-      .replace(/[^a-zA-Z0-9_-]/g, '');
+    const ext  = path.extname(file.originalname || '').toLowerCase();
+    const base = sanitizeBase(path.basename(file.originalname || 'img', ext));
     cb(null, `${Date.now()}-${base}${ext}`);
   }
-});
+});;
 
 const upload = multer({
   storage,

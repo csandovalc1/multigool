@@ -34,11 +34,12 @@ const toDateOrNull = (s) => {
   return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : null;
 };
 
-exports.list = async (_req, res) => {
+exports.list = async (req, res) => {
   try {
     const data = await model.list();
     const mapped = (data || []).map(n => ({
       ...n,
+      portada_url: (req.query.abs === '1') ? absUrl(req, n.portada_url) : n.portada_url,
       publish_at: toGTString(n.publish_at)
     }));
     res.json(mapped);
@@ -53,13 +54,15 @@ exports.getOne = async (req, res) => {
     const row = await model.getById(id);
     if (!row) return res.status(404).json({ error: 'no existe' });
 
-    const imagenes = parseImgs(row);
+    let imagenes = parseImgs(row);
+    if (req.query.abs === '1') imagenes = imagenes.map(u => absUrl(req, u));
+
     res.json({
       id: row.id,
       titulo: row.titulo,
       slug: row.slug,
       resumen: row.resumen,
-      portada_url: row.portada_url,
+      portada_url: (req.query.abs === '1') ? absUrl(req, row.portada_url) : row.portada_url,
       imagenes,
       estado: row.estado,
       publish_at: toGTString(row.publish_at),
@@ -78,16 +81,17 @@ exports.getPublicBySlug = async (req, res) => {
     const slug = String(req.params.slug || '').trim().toLowerCase();
     if (!slug) return res.status(400).json({ error: 'slug inválido' });
     const row = await model.getBySlug(slug);
-    if (!row || String(row.estado).toLowerCase() !== 'publicada') {
-      return res.status(404).json({ error: 'no existe' });
-    }
-    const imagenes = parseImgs(row);
+    if (!row || String(row.estado).toLowerCase() !== 'publicada') return res.status(404).json({ error: 'no existe' });
+
+    let imagenes = parseImgs(row);
+    if (req.query.abs === '1') imagenes = imagenes.map(u => absUrl(req, u));
+
     res.json({
       id: row.id,
       titulo: row.titulo,
       slug: row.slug,
       resumen: row.resumen,
-      portada_url: row.portada_url,
+      portada_url: (req.query.abs === '1') ? absUrl(req, row.portada_url) : row.portada_url,
       imagenes,
       estado: row.estado,
       publish_at: toGTString(row.publish_at),
@@ -106,22 +110,14 @@ exports.create = async (req, res) => {
     if (!titulo || !cuerpo_md) return res.status(400).json({ error: 'titulo y cuerpo_md son requeridos' });
 
     const slug = slugify(titulo);
-    const imgs = (req.files || []).slice(0, 3).map(f => `/uploads/news/${path.basename(f.filename)}`);
+    const imgs = (req.files || []).slice(0, 3).map(f => relFromMulter(f, 'news'));
     const portada = imgs[0] || null;
 
-    const normalized = {
-      titulo,
-      slug,
-      resumen,
-      cuerpo_md,
-      portada_url: portada,
-      imagenes: imgs,
-      is_important: toBool(is_important),
-      banner_start: toDateOrNull(banner_start),
-      banner_end: toDateOrNull(banner_end),
-    };
-
-    const r = await model.create(normalized);
+    const r = await model.create({
+      titulo, slug, resumen, cuerpo_md,
+      portada_url: portada, imagenes: imgs,
+      is_important: is_important, banner_start, banner_end
+    });
     res.json({ id: r.id });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -142,22 +138,15 @@ exports.update = async (req, res) => {
       try { imgs = JSON.parse(prev.imagenes_json || '[]'); } catch { imgs = []; }
     }
     const newUploads = (req.files || []).slice(0, Math.max(0, 3 - imgs.length))
-      .map(f => `/uploads/news/${path.basename(f.filename)}`);
+      .map(f => relFromMulter(f, 'news'));
     imgs = [...imgs, ...newUploads].slice(0, 3);
     const portada = imgs[0] || null;
 
-    const normalized = {
-      titulo,
-      resumen,
-      cuerpo_md,
-      portada_url: portada,
-      imagenes: imgs,
-      is_important: toBool(is_important),
-      banner_start: toDateOrNull(banner_start),
-      banner_end: toDateOrNull(banner_end),
-    };
-
-    await model.update(id, normalized);
+    await model.update(id, {
+      titulo, resumen, cuerpo_md,
+      portada_url: portada, imagenes: imgs,
+      is_important, banner_start, banner_end
+    });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -184,6 +173,22 @@ exports.remove = async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'id inválido' });
+
+    const row = await model.getById(id);
+    if (row) {
+      // borra portada
+      if (row.portada_url) {
+        const abs = path.join(__dirname, '..', row.portada_url.replace(/^\//, ''));
+        fs.promises.unlink(abs).catch(() => {});
+      }
+      // borra todas las imágenes del JSON
+      let imgs = [];
+      try { imgs = JSON.parse(row.imagenes_json || '[]'); } catch {}
+      for (const u of imgs) {
+        const abs = path.join(__dirname, '..', String(u).replace(/^\//, ''));
+        fs.promises.unlink(abs).catch(() => {});
+      }
+    }
     await model.remove(id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }

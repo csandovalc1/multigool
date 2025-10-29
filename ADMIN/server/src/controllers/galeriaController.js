@@ -11,11 +11,12 @@ function toGTString(dt) {
   return `${gt.getFullYear()}-${pad(gt.getMonth()+1)}-${pad(gt.getDate())} ${pad(gt.getHours())}:${pad(gt.getMinutes())}:${pad(gt.getSeconds())}`;
 }
 
-exports.list = async (_req, res) => {
+exports.list = async (req, res) => {
   try {
     const rows = await model.list();
     const mapped = rows.map(r => ({
       ...r,
+      url: (req.query.abs === '1') ? absUrl(req, r.url) : r.url,
       publish_at: toGTString(r.publish_at),
       created_at: toGTString(r.created_at)
     }));
@@ -26,6 +27,7 @@ exports.list = async (_req, res) => {
 };
 
 // Subida múltiple: files + descriptions[] (alineadas por índice)
+
 exports.create = async (req, res) => {
   try {
     const files = req.files || [];
@@ -37,7 +39,7 @@ exports.create = async (req, res) => {
     else if (typeof raw === 'string') descriptions = [raw];
 
     const items = files.map((f, i) => ({
-      url: `/uploads/gallery/${path.basename(f.filename)}`,
+      url: relFromMulter(f, 'gallery'),
       descripcion: descriptions[i] || null
     }));
 
@@ -87,11 +89,10 @@ exports.remove = async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'id inválido' });
 
-    // Borrar archivo físico (opcional)
     const row = await model.getById(id);
     if (row?.url) {
       const abs = path.join(__dirname, '..', row.url.replace(/^\//, ''));
-      fs.promises.unlink(abs).catch(() => {}); // no romper si no existe
+      fs.promises.unlink(abs).catch(() => {});
     }
     await model.remove(id);
     res.json({ ok: true });
