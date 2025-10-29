@@ -1,0 +1,20 @@
+:root{
+  --bg: #0b1020;        /* app shell */
+  --panel:#0f172a;      /* panel oscuro */
+  --panel-2:#111827;    /* panel alt */
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+  --brand:#6366f1;
+  --ring: rgba(99,102,241,.45);
+}
+.light:root{
+  --bg:#f7f8fb;
+  --panel:#ffffff;
+  --panel-2:#f8fafc;
+  --text:#0f172a;
+  --muted:#64748b;
+  --brand:#4f46e5;
+  --ring: rgba(79,70,229,.35);
+}
+html,body,#root{height:100%}
+body{background:var(--bg); color:var(--text); font-feature-settings:"cv02","cv03","cv04","cv11"}

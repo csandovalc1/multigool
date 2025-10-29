@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* opcional: tus estilos */
+:root { --radius: 12px; }

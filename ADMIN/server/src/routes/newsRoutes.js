@@ -1,0 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const c = require('../controllers/newsController');
+router.get('/', c.list);
+router.post('/', c.create);
+router.patch('/:id', c.update);
+router.post('/:id/publish', c.publish);
+router.post('/:id/unpublish', c.unpublish);
+router.delete('/:id', c.remove);
+module.exports = router;
