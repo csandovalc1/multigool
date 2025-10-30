@@ -23,13 +23,15 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // ⚠️ Filesystem efímero en App Platform: /uploads se borra en redeploy.
 // Úsalo solo temporalmente o cambia a DO Spaces. Si igual lo usas:
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads', 'team-logos');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+const UPLOAD_ROOT = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
+fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
+
+// Servir TODO el árbol de /uploads (team-logos, news, gallery, etc.)
+app.use('/uploads', express.static(UPLOAD_ROOT, {
   maxAge: '7d',
   immutable: true,
   setHeaders(res) {
-    res.setHeader('Access-Control-Allow-Origin', '*'); // si necesitas embebidos públicos
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
 }));
 
