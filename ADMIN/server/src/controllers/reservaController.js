@@ -216,6 +216,11 @@ exports.getSlots = async (req, res) => {
     const dirPeersMap = await canchaModel.getDirectionalPeersMap(); // { cancha_id: [peerId...] }
     const nameToId    = await canchaModel.mapNameToId();            // nombre->id para partidos con texto
 
+    // Cierre duro desde backend
+if (await reservaModel.isDateClosed(fecha)) {
+  return res.json([]); // ningún horario en ningún recurso
+}
+
     // === RESERVAS (bloquean: pendiente/pagada) ===
     const blocking = new Set(['pendiente','pagada','completada']);
     const allRes = await reservaModel.listByDate({ fecha, tipo_futbol: null });
