@@ -6,6 +6,7 @@ import PlayoffsConfigModal from '../widgets/PlayoffsConfigModal';
 import PlantillaEquipoModal from '../widgets/PlantillaEquipoModal';
 import UploadLogoField from '../components/UploadLogoField.jsx';
 const LOCAL_DEFAULT = `${import.meta.env.BASE_URL}defaults/defaultteam.png`;
+const ORIGIN_NO_API = API_ORIGIN.replace(/\/api\/?$/i, '');
 const qp = (u, v) => u + (u.includes('?') ? '&' : '?') + `v=${v}`;
 
 export default function TorneoDetalleModal({ torneo, onClose }) {
@@ -34,9 +35,11 @@ export default function TorneoDetalleModal({ torneo, onClose }) {
 
   // helper: compone URL absoluta del logo
 const imgUrl = (p) => {
-  if (!p) return LOCAL_DEFAULT;                 // fallback local (sin CORB)
-  if (/^https?:\/\//i.test(p)) return p;        // absoluta externa
-  return qp(`${API_ORIGIN}${p}`, logoNonce);    // añade ?v=<nonce>
+  if (!p) return LOCAL_DEFAULT;                          // fallback local
+  if (/^https?:\/\//i.test(p)) return p;                 // absoluta
+  if (p.startsWith('/uploads') || p.startsWith('/public'))
+    return qp(`${ORIGIN_NO_API}${p}`, logoNonce);                    // archivos estáticos -> sin /api
+  return qp(`${API_ORIGIN}${p}`, logoNonce);                           // endpoints REST -> con /api
 };
 
 
