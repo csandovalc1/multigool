@@ -16,7 +16,7 @@ export default function Sidebar() {
           <NavLink to="/calendario" className={itemClass}>Calendario</NavLink>
           <NavLink to="/reservas" className={itemClass}>Reservas</NavLink>
           <NavLink to="/noticias" className={itemClass}>Noticias</NavLink>
-          <a href="https://multigool.example" className="block px-3 py-2 rounded hover:bg-slate-100" target="_blank" rel="noreferrer">Landing</a>
+          <a href="https://multigoolelsauce.me/" className="block px-3 py-2 rounded hover:bg-slate-100" target="_blank" rel="noreferrer">Landing</a>
         </nav>
       </div>
     </aside>
