@@ -1,5 +1,6 @@
 // controllers/noticiasController.js
 const path = require('path');
+const fs   = require('fs'); 
 const model = require('../models/noticiasModel');
 const { relFromMulter, absUrl } = require('../utils/urls');
 
@@ -116,11 +117,18 @@ exports.create = async (req, res) => {
 
     const r = await model.create({
       titulo, slug, resumen, cuerpo_md,
-      portada_url: portada, imagenes: imgs,
-      is_important: is_important, banner_start, banner_end
+portada_url: portada, imagenes: imgs,
+      is_important: toBool(is_important),
+      banner_start: toDateOrNull(banner_start),
+      banner_end:   toDateOrNull(banner_end),
     });
     res.json({ id: r.id });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    if (e && (e.code === 'E_DUP_SLUG' || e.code === 'ER_DUP_ENTRY')) {
+      return res.status(409).json({ error: 'slug ya existe' });
+    }
+    res.status(500).json({ error: e.message });
+  }
 };
 
 exports.update = async (req, res) => {
@@ -146,7 +154,9 @@ exports.update = async (req, res) => {
     await model.update(id, {
       titulo, resumen, cuerpo_md,
       portada_url: portada, imagenes: imgs,
-      is_important, banner_start, banner_end
+      is_important: toBool(is_important),
+      banner_start: toDateOrNull(banner_start),
+      banner_end:   toDateOrNull(banner_end),
     });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
