@@ -4,7 +4,7 @@ const fs = require('fs');
 const sharp = require('sharp');
 const equipoModel = require('../models/equipoModel');
 
-const DEFAULT_LOGO = '/defaults/defaultteam.png';
+const DEFAULT_LOGO = null;       
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'team-logos');
 
 async function processAndSavePNG(buffer, outPath) {
@@ -42,13 +42,8 @@ exports.agregarEquipo = async (req, res) => {
     // 1) Creamos con logo por defecto (o archivo si vino)
     let logoPath = DEFAULT_LOGO;
 
-    const r = await equipoModel.agregarEquipo(
-      nombre,
-      parseInt(torneo_id),
-      logoPath,
-      fechaReg // opcional; si null, SQL usa DEFAULT
-    );
-    const id = r.insertId;
+const r = await equipoModel.agregarEquipo(nombre, parseInt(torneo_id), logoPath, fechaReg);
+  const id = r.insertId;
 
     if (req.file) {
       const filename = `team-${id}.png`;
