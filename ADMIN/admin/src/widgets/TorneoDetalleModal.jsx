@@ -6,7 +6,7 @@ import PlayoffsConfigModal from '../widgets/PlayoffsConfigModal';
 import PlantillaEquipoModal from '../widgets/PlantillaEquipoModal';
 import UploadLogoField from '../components/UploadLogoField.jsx';
 const LOCAL_DEFAULT = `${import.meta.env.BASE_URL}defaults/defaultteam.png`;
-const ORIGIN_NO_API = API_ORIGIN.replace(/\/api\/?$/i, '');
+const BACKEND_URL = 'https://lionfish-app-wkapu.ondigitalocean.app'; 
 const qp = (u, v) => u + (u.includes('?') ? '&' : '?') + `v=${v}`;
 
 export default function TorneoDetalleModal({ torneo, onClose }) {
@@ -35,11 +35,11 @@ export default function TorneoDetalleModal({ torneo, onClose }) {
 
   // helper: compone URL absoluta del logo
 const imgUrl = (p) => {
-  if (!p) return LOCAL_DEFAULT;                          // fallback local
-  if (/^https?:\/\//i.test(p)) return p;                 // absoluta
+  if (!p) return LOCAL_DEFAULT;
+  if (/^https?:\/\//i.test(p)) return p;
   if (p.startsWith('/uploads') || p.startsWith('/public'))
-    return qp(`${ORIGIN_NO_API}${p}`, logoNonce);                    // archivos estáticos -> sin /api
-  return qp(`${API_ORIGIN}${p}`, logoNonce);                           // endpoints REST -> con /api
+    return `${BACKEND_URL}${p}`; // ✅ corrige la raíz
+  return `${BACKEND_URL}/api${p}`; // si algún endpoint devuelve ruta sin /uploads
 };
 
 
