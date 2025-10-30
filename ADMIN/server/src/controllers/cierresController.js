@@ -1,6 +1,6 @@
 // controllers/cierresController.js
 const cierresModel = require('../models/cierresModel');
-const { sql, getPool } = require('../config/db');
+const { getPool } = require('../config/db');
 
 exports.listByMonth = async (req, res) => {
   try {
@@ -29,28 +29,28 @@ exports.create = async (req, res) => {
       return res.status(409).json(conflicts);
     }
 
-    const pool = await getPool();
-    const tx = new sql.Transaction(pool);
-    await tx.begin();
+const pool = await getPool();
+    const conn = await pool.getConnection();
     try {
-      // upsert del cierre
-      await cierresModel.insert({ fecha, motivo: motivo || null }, tx);
+      await conn.beginTransaction();
+
+      // upsert del cierre dentro de la TX
+      await cierresModel.insert({ fecha, motivo: motivo || null }, conn);
 
       if (hasConflicts) {
         // cancelar reservas; no tocamos partidos/torneos
-        const canceladas = await cierresModel.cancelReservationsForDate(fecha, tx);
-        await tx.commit();
-        return res.status(201).json({
-          ok: true,
-          canceladas
-        });
+        const canceladas = await cierresModel.cancelReservationsForDate(fecha, conn);
+        await conn.commit();
+        return res.status(201).json({ ok: true, canceladas });
       }
 
-      await tx.commit();
+      await conn.commit();
       return res.status(201).json({ ok: true });
     } catch (err) {
-      await tx.rollback();
+      try { await conn.rollback(); } catch (_) {}
       throw err;
+    } finally {
+      conn.release();
     }
   } catch (e) {
     res.status(500).json({ error: e.message });
