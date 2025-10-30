@@ -6,6 +6,7 @@ import PlayoffsConfigModal from '../widgets/PlayoffsConfigModal';
 import PlantillaEquipoModal from '../widgets/PlantillaEquipoModal';
 import UploadLogoField from '../components/UploadLogoField.jsx';
 const LOCAL_DEFAULT = `${import.meta.env.BASE_URL}defaults/defaultteam.png`;
+const qp = (u, v) => u + (u.includes('?') ? '&' : '?') + `v=${v}`;
 
 export default function TorneoDetalleModal({ torneo, onClose }) {
   const [equipos, setEquipos] = useState([]);
@@ -16,6 +17,7 @@ export default function TorneoDetalleModal({ torneo, onClose }) {
   const [showPOConfig, setShowPOConfig] = useState(false);
   const [startingPO, setStartingPO] = useState(false);
   const [equipoPlantilla, setEquipoPlantilla] = useState(null);
+  const [logoNonce, setLogoNonce] = useState(Date.now());
 
   // estados para el escudo al crear equipo
   const [quiereLogo, setQuiereLogo] = useState(false);
@@ -32,9 +34,9 @@ export default function TorneoDetalleModal({ torneo, onClose }) {
 
   // helper: compone URL absoluta del logo
 const imgUrl = (p) => {
-  if (!p) return LOCAL_DEFAULT;              
-  if (/^https?:\/\//i.test(p)) return p;     
-  return `${API_ORIGIN}${p}`;                
+  if (!p) return LOCAL_DEFAULT;                 // fallback local (sin CORB)
+  if (/^https?:\/\//i.test(p)) return p;        // absoluta externa
+  return qp(`${API_ORIGIN}${p}`, logoNonce);    // añade ?v=<nonce>
 };
 
 
@@ -60,6 +62,7 @@ const imgUrl = (p) => {
       ]);
       setEquipos(eqs || []);
       setJornadas(jors || []);
+      setLogoNonce(Date.now());
     } catch (e) {
       console.error(e);
       alert('Error al cargar detalle del torneo');
@@ -214,6 +217,7 @@ const imgUrl = (p) => {
       setEquipos((prev) =>
         prev.map((e) => (e.id === teamId ? { ...e, logo_path: data.logo_path } : e))
       );
+      setLogoNonce(Date.now());
       cancelarEditorLogo();
     } catch (e) {
       console.error(e);
