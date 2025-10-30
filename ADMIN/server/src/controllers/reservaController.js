@@ -78,6 +78,11 @@ exports.listSemana = async (req, res) => {
     const tipo  = String(req.query.tipo_futbol || '').trim() || null;
     let { dur } = req.query;
 
+    const closedDays = {};
+for (const d of dias) {
+  closedDays[d] = await reservaModel.isDateClosed(d);
+}
+
     if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) {
       return res.status(400).json({ error: 'start (YYYY-MM-DD) es requerido' });
     }
@@ -215,6 +220,11 @@ exports.getSlots = async (req, res) => {
     // *** peers direccionales ***
     const dirPeersMap = await canchaModel.getDirectionalPeersMap(); // { cancha_id: [peerId...] }
     const nameToId    = await canchaModel.mapNameToId();            // nombre->id para partidos con texto
+
+    // Cierre duro desde backend
+if (await reservaModel.isDateClosed(fecha)) {
+  return res.json([]); // ningún horario en ningún recurso
+}
 
     // === RESERVAS (bloquean: pendiente/pagada) ===
     const blocking = new Set(['pendiente','pagada','completada']);

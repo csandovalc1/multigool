@@ -24,11 +24,10 @@ const withTransaction = async (fn) => {
  * Helper: validar cierre por fecha
  * ============================== */
 const assertDateOpen = async (fechaYMD, conn = null) => {
-  const pool = await getPool();
-  const db = conn || pool;
+  const db = conn || (await getPool());
   const [rows] = await db.execute(
     `SELECT 1 AS closed FROM calendario_cierres WHERE fecha = :f LIMIT 1`,
-    { f: new Date(fechaYMD) }
+    { f: String(fechaYMD) } // <-- string exacto 'YYYY-MM-DD'
   );
   if (rows[0]?.closed) {
     const err = new Error('La fecha seleccionada está CERRADA y no admite reservas.');
@@ -37,6 +36,7 @@ const assertDateOpen = async (fechaYMD, conn = null) => {
     throw err;
   }
 };
+
 
 /* ==============================
  * LISTADOS Y GETTERS
@@ -255,6 +255,17 @@ exports.getById = async (id) => {
   );
   return row || null;
 };
+
+// === CIERRES ===
+exports.isDateClosed = async (fechaYMD) => {
+  const pool = await getPool();
+  const [rows] = await pool.execute(
+    `SELECT 1 AS closed FROM calendario_cierres WHERE fecha = :f LIMIT 1`,
+    { f: String(fechaYMD) } // <-- string, no Date()
+  );
+  return !!rows[0];
+};
+
 
 exports.updateEstado = async (id, estado) => {
   const pool = await getPool();

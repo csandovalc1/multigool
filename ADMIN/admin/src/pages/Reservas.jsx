@@ -672,13 +672,21 @@ onClick={() => {
             <h3 className="text-sm font-black uppercase text-neutral-500 mb-2">
               Escoge la fecha
             </h3>
-            <DateScroller
-              value={date}
-              setValue={(d) => {
-                setDate(d);
-                setSel((s) => ({ ...s, time: "" }));
-              }}
-            />
+<DateScroller
+  value={date}
+  setValue={async (d) => {
+    setDate(d);
+    setSel((s) => ({ ...s, time: "" }));
+    await ensureMonthLoaded(d);
+    const closed = recomputeIsClosed(d);
+    setIsClosed(closed);
+    if (closed) {
+      setSlots([]);
+      setError("Este día está CERRADO. No se admiten reservas.");
+    }
+  }}
+/>
+
             {isClosed && (
               <div className="mt-2 p-2 rounded-md bg-neutral-100 border border-neutral-300 text-neutral-700 text-sm">
                 <b>Este día está CERRADO.</b> No se admiten reservas ni horarios.
