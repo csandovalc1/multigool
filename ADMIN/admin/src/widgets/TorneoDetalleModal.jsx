@@ -5,7 +5,7 @@ import { api, API_ORIGIN } from '../lib/api';
 import PlayoffsConfigModal from '../widgets/PlayoffsConfigModal';
 import PlantillaEquipoModal from '../widgets/PlantillaEquipoModal';
 import UploadLogoField from '../components/UploadLogoField.jsx';
-const DEFAULT_TEAM_URL = `${API_ORIGIN}/public/defaults/defaultteam.png`;
+const LOCAL_DEFAULT = `${import.meta.env.BASE_URL}defaults/defaultteam.png`;
 
 export default function TorneoDetalleModal({ torneo, onClose }) {
   const [equipos, setEquipos] = useState([]);
@@ -32,9 +32,9 @@ export default function TorneoDetalleModal({ torneo, onClose }) {
 
   // helper: compone URL absoluta del logo
 const imgUrl = (p) => {
-  if (!p) return DEFAULT_TEAM_URL;              
-  if (/^https?:\/\//i.test(p)) return p;        
-  return `${API_ORIGIN}${p}`;                   
+  if (!p) return LOCAL_DEFAULT;              
+  if (/^https?:\/\//i.test(p)) return p;     
+  return `${API_ORIGIN}${p}`;                
 };
 
 
@@ -356,9 +356,10 @@ const imgUrl = (p) => {
                             className="h-8 w-8 rounded object-cover"
                             loading="lazy"
 onError={(ev) => {
-  ev.currentTarget.onerror = null;               // evita loop
-  ev.currentTarget.src = DEFAULT_TEAM_URL;       // usa el default del backend
+  ev.currentTarget.onerror = null;           // evita loop
+  ev.currentTarget.src = LOCAL_DEFAULT;      // fallback LOCAL
 }}
+
                           />
                           <span className="truncate">{e.nombre}</span>
                         </div>
