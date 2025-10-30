@@ -5,6 +5,17 @@ const { getPool } = require('../config/db');
    Helpers de agendado (JS)
    ========================= */
 function pad2(n){ return String(n).padStart(2,'0'); }
+function normHHMM(hhmm) {
+  // Acepta '7:00' o '07:00' y devuelve '07:00:00'
+  const m = String(hhmm || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const hh = pad2(m[1]);
+  const mm = m[2];
+  return `${hh}:${mm}:00`;
+}
+
+
+
 function toSqlTime(hhmm){
   const m = String(hhmm).match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if(!m) return null;
@@ -134,15 +145,18 @@ async function crearTorneo(data) {
     // 2) franjas
     if (Array.isArray(franjas) && franjas.length) {
       for (const f of franjas) {
-        const hi = (f?.inicio || f?.hi || '').toString().slice(0,5);
-        const hf = (f?.fin    || f?.hf || '').toString().slice(0,5);
-        if (!/^\d{2}:\d{2}$/.test(hi) || !/^\d{2}:\d{2}$/.test(hf)) continue;
+        // Acepta { inicio, fin } o { hi, hf }
+      const rawHi = (f?.inicio ?? f?.hi ?? '').toString().slice(0,5);
+      const rawHf = (f?.fin    ?? f?.hf ?? '').toString().slice(0,5);
+      const hi = normHHMM(rawHi);
+      const hf = normHHMM(rawHf);
+      if (!hi || !hf) continue; // evita basuras → NO inserta '00:00:00'
 
-        await conn.execute(
-          `INSERT INTO torneo_franjas (torneo_id, hora_inicio, hora_fin)
-           VALUES (:tid, TIME(:hi), TIME(:hf))`,
-          { tid: torneoId, hi: `${hi}:00`, hf: `${hf}:00` }
-        );
+     await conn.execute(
+        `INSERT INTO torneo_franjas (torneo_id, hora_inicio, hora_fin)
+         VALUES (:tid, :hi, :hf)`,
+        { tid: torneoId, hi, hf }
+      );
       }
     }
 
