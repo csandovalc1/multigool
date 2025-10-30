@@ -5,6 +5,7 @@ import { api, API_ORIGIN } from '../lib/api';
 import PlayoffsConfigModal from '../widgets/PlayoffsConfigModal';
 import PlantillaEquipoModal from '../widgets/PlantillaEquipoModal';
 import UploadLogoField from '../components/UploadLogoField.jsx';
+const DEFAULT_TEAM_URL = `${API_ORIGIN}/public/defaults/defaultteam.png`;
 
 export default function TorneoDetalleModal({ torneo, onClose }) {
   const [equipos, setEquipos] = useState([]);
@@ -30,11 +31,12 @@ export default function TorneoDetalleModal({ torneo, onClose }) {
   const navigate = useNavigate();
 
   // helper: compone URL absoluta del logo
-  const imgUrl = (p) => {
-    if (!p) return '/defaults/defaultteam.png';
-    if (/^https?:\/\//i.test(p)) return p;
-    return `${API_ORIGIN}${p}`;
-  };
+const imgUrl = (p) => {
+  if (!p) return DEFAULT_TEAM_URL;              
+  if (/^https?:\/\//i.test(p)) return p;        
+  return `${API_ORIGIN}${p}`;                   
+};
+
 
   const Q = (n) =>
     new Intl.NumberFormat('es-GT', {
@@ -353,9 +355,10 @@ export default function TorneoDetalleModal({ torneo, onClose }) {
                             alt="escudo"
                             className="h-8 w-8 rounded object-cover"
                             loading="lazy"
-                            onError={(ev) => {
-                              ev.currentTarget.src = '/defaults/defaultteam.png';
-                            }}
+onError={(ev) => {
+  ev.currentTarget.onerror = null;               // evita loop
+  ev.currentTarget.src = DEFAULT_TEAM_URL;       // usa el default del backend
+}}
                           />
                           <span className="truncate">{e.nombre}</span>
                         </div>
