@@ -4,7 +4,7 @@ export const STATUS_COLORS = {
   TOURNAMENT: 'bg-yellow-500 text-white',
 }
 
-export const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:3001';
+export const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://lionfish-app-wkapu.ondigitalocean.app';
 
 export function absUrl(p) {
   if (!p) return null;
@@ -79,5 +79,5 @@ export const DAY_2025_06_12 = {
 
 export const API_BASE =
   import.meta.env.VITE_API_BASE ||
-  'http://localhost:3001';
+  'https://lionfish-app-wkapu.ondigitalocean.app';
 
