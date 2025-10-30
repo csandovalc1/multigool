@@ -2,11 +2,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, API_ORIGIN } from "../lib/api";
 
+const STATIC_HOST = "https://lionfish-app-wkapu.ondigitalocean.app";
+
 const imgUrl = (p) => {
-  if (!p) return "/defaults/defaultteam.png";
-  if (/^https?:\/\//i.test(p)) return p;
-  return `${API_ORIGIN}${p}`;
-};
+   if (!p) return "/defaults/defaultteam.png";
+   if (/^https?:\/\//i.test(p)) return p;
+   return `${STATIC_HOST}${p}`;
+ };
 function TeamAvatar({ src, alt }) {
   return (
     <img
@@ -14,7 +16,10 @@ function TeamAvatar({ src, alt }) {
       alt={alt || "logo"}
       className="h-6 w-6 rounded object-cover ring-1 ring-slate-200"
       loading="lazy"
-      onError={(ev) => (ev.currentTarget.src = "/defaults/defaultteam.png")}
+      onError={(ev) => {
+        ev.currentTarget.onerror = null;      // evita loop
+        ev.currentTarget.src = "/defaults/defaultteam.png";
+     }}
     />
   );
 }
