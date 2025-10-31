@@ -16,6 +16,122 @@ const btn = `${btnBase} px-3 py-1.5 hover:bg-slate-50 hover:border-slate-300`;
 const btnSm = `${btnBase} px-2 py-1 hover:bg-slate-50 hover:border-slate-300`;
 const btnDanger = `${btnBase} px-2 py-1 text-rose-600 hover:bg-rose-50 hover:border-rose-300`;
 
+// ===== Helpers de exportación =====
+function to2(n){ return String(n).padStart(2, "0"); }
+function parseYMD(ymd){
+  if(!ymd) return null;
+  const [y,m,d] = ymd.split("-").map(Number);
+  return { y, m, d };
+}
+function calcEdadFromYMD(ymd){
+  const p = parseYMD(ymd);
+  if(!p) return null;
+  const hoy = new Date();
+  let e = hoy.getFullYear() - p.y;
+  const before = (hoy.getMonth()+1 < p.m) || ((hoy.getMonth()+1===p.m) && (hoy.getDate() < p.d));
+  if(before) e--;
+  return e;
+}
+function alumnosToRows(list){
+  return list.map(a => ({
+    "Nombre": `${a.nombres || ""} ${a.apellidos || ""}`.trim(),
+    "Nacimiento": a.fecha_nacimiento || "-",
+    "Edad": calcEdadFromYMD(a.fecha_nacimiento) ?? "-",
+    "Categoría": a.categoria_nombre || "—",
+    "Teléfono": a.telefono || "—",
+  }));
+}
+function downloadBlob(filename, mime, content){
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+async function exportExcel(rows){
+  // 1) Intento XLSX real
+  try{
+    const XLSX = await import(/* webpackChunkName: "xlsx" */ "xlsx");
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Alumnos");
+    const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    downloadBlob(`alumnos_${Date.now()}.xlsx`, 
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out);
+    return;
+  }catch(e){
+    // 2) Fallback CSV (abre perfecto en Excel)
+    const headers = Object.keys(rows[0] || {Nombre:"",Nacimiento:"",Edad:"",Categoría:"",Teléfono:""});
+    const csv = [headers.join(",")]
+      .concat(rows.map(r => headers.map(h => {
+        const v = String(r[h] ?? "");
+        // escapa comas y comillas
+        const need = v.includes(",") || v.includes('"') || v.includes("\n");
+        return need ? `"${v.replace(/"/g,'""')}"` : v;
+      }).join(",")))
+      .join("\n");
+    downloadBlob(`alumnos_${Date.now()}.csv`, "text/csv;charset=utf-8", csv);
+  }
+}
+async function exportPDF(rows){
+  // 1) Intento jsPDF + autoTable
+  try{
+    const jsPDFmod = await import(/* webpackChunkName: "jspdf" */ "jspdf");
+    const { default: jsPDF } = jsPDFmod;
+    const autoTable = (await import(/* webpackChunkName: "jspdf-autotable" */ "jspdf-autotable")).default;
+    const doc = new jsPDF();
+
+    doc.setFontSize(14);
+    doc.text("Listado de Alumnos", 14, 18);
+    const body = rows.map(r => [r["Nombre"], r["Nacimiento"], r["Edad"], r["Categoría"], r["Teléfono"]]);
+    autoTable(doc, {
+      head: [["Nombre","Nacimiento","Edad","Categoría","Teléfono"]],
+      body,
+      startY: 24,
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [15,23,42] } // slate-900
+    });
+    doc.save(`alumnos_${Date.now()}.pdf`);
+    return;
+  }catch(e){
+    // 2) Fallback: ventana imprimible (usuario guarda como PDF)
+    const html = `
+      <html>
+      <head>
+        <title>Alumnos</title>
+        <style>
+          body{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding:16px; }
+          h1{ font-size:18px; margin:0 0 12px; }
+          table{ width:100%; border-collapse: collapse; font-size:12px; }
+          th, td{ border:1px solid #ddd; padding:6px 8px; }
+          th{ background:#111827; color:#fff; text-align:left; }
+          tr:nth-child(even){ background:#f9fafb; }
+        </style>
+      </head>
+      <body>
+        <h1>Listado de Alumnos</h1>
+        <table>
+          <thead>
+            <tr><th>Nombre</th><th>Nacimiento</th><th>Edad</th><th>Categoría</th><th>Teléfono</th></tr>
+          </thead>
+          <tbody>
+            ${rows.map(r=>`<tr>
+              <td>${r["Nombre"]}</td>
+              <td>${r["Nacimiento"]}</td>
+              <td>${r["Edad"]}</td>
+              <td>${r["Categoría"]}</td>
+              <td>${r["Teléfono"]}</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+        <script>window.print();</script>
+      </body></html>`;
+    const w = window.open("", "_blank");
+    if(w){ w.document.open(); w.document.write(html); w.document.close(); }
+  }
+}
+
+
 export default function AcademiaAdmin() {
   const [tab, setTab] = useState("categorias");
   const [cats, setCats] = useState([]);
@@ -304,27 +420,56 @@ export default function AcademiaAdmin() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">Alumnos</h3>
             <div className="flex flex-wrap gap-2">
-              <select
-                className="border rounded px-2 py-1 text-sm hover:border-slate-400 transition-colors"
-                value={filterCatId ?? ""}
-                onChange={(e)=> setFilterCatId(e.target.value === "" ? null : Number(e.target.value))}
-              >
-                <option value="">Todas las categorías</option>
-                {cats.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
-              <input
-                className="border rounded px-3 py-1.5 text-sm hover:border-slate-400 transition-colors"
-                placeholder="Buscar por nombre/apellido"
-                value={q}
-                onChange={(e)=> setQ(e.target.value)}
-              />
-              <button className={btn} onClick={() => { setQ(""); setFilterCatId(null); }} title="Limpiar filtros">
-                Limpiar
-              </button>
-              <button className={btn} onClick={openAlumnoCreate}>
-                Nuevo alumno
-              </button>
-            </div>
+  <select
+    className="border rounded px-2 py-1 text-sm hover:border-slate-400 transition-colors"
+    value={filterCatId ?? ""}
+    onChange={(e)=> setFilterCatId(e.target.value === "" ? null : Number(e.target.value))}
+  >
+    <option value="">Todas las categorías</option>
+    {cats.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+  </select>
+
+  <input
+    className="border rounded px-3 py-1.5 text-sm hover:border-slate-400 transition-colors"
+    placeholder="Buscar por nombre/apellido"
+    value={q}
+    onChange={(e)=> setQ(e.target.value)}
+  />
+
+  <button className={btn} onClick={() => { setQ(""); setFilterCatId(null); }} title="Limpiar filtros">
+    Limpiar
+  </button>
+
+  <button className={btn} onClick={openAlumnoCreate}>
+    Nuevo alumno
+  </button>
+
+  {/* === Exportar === */}
+  <button
+    className={btn}
+    onClick={async ()=>{
+      const rows = alumnosToRows(alumnosFiltrados);
+      if(rows.length === 0){ alert("No hay alumnos para exportar."); return; }
+      await exportExcel(rows);
+    }}
+    title="Exportar a Excel"
+  >
+    Exportar Excel
+  </button>
+
+  <button
+    className={btn}
+    onClick={async ()=>{
+      const rows = alumnosToRows(alumnosFiltrados);
+      if(rows.length === 0){ alert("No hay alumnos para exportar."); return; }
+      await exportPDF(rows);
+    }}
+    title="Exportar a PDF"
+  >
+    Exportar PDF
+  </button>
+</div>
+
           </div>
 
           <div className="grid grid-cols-12 text-xs uppercase tracking-wide text-neutral-500 border-b px-2 py-2">
