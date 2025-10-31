@@ -236,70 +236,106 @@ async function eliminarTorneo(id) {
   try {
     await conn.beginTransaction();
 
-    // 1) Romper referencias self-FK de elim_matches
-    await conn.execute(
-      `
+    // --- ELIMINACIÓN (fase de playoffs) ------------------------------------
+    // 1) Romper self-FK en elim_matches
+    await conn.execute(`
       UPDATE elim_matches em
       JOIN eliminatorias e ON e.id = em.eliminatoria_id
       SET em.next_match_id = NULL,
           em.parent_match_id = NULL
       WHERE e.torneo_id = :tid
-      `,
-      { tid: id }
-    );
+    `, { tid: id });
 
-    // 2) Borrar detalle de partidos de eliminación
-    await conn.execute(
-      `
+    // 2) Detalle de eliminación por MATCH
+    await conn.execute(`
       DELETE epd
       FROM elim_partido_detalle epd
-      JOIN elim_matches em   ON em.id = epd.match_id
-      JOIN eliminatorias e   ON e.id = em.eliminatoria_id
+      JOIN elim_matches em ON em.id = epd.match_id
+      JOIN eliminatorias e ON e.id = em.eliminatoria_id
       WHERE e.torneo_id = :tid
-      `,
-      { tid: id }
-    );
+    `, { tid: id });
 
-    // 3) Borrar partidos de eliminación
-    await conn.execute(
-      `
+    // 3) Detalle de eliminación por JUGADOR (por si hay registros sueltos)
+    await conn.execute(`
+      DELETE epd
+      FROM elim_partido_detalle epd
+      JOIN jugadores j  ON j.id = epd.jugador_id
+      JOIN equipos   eq ON eq.id = j.equipo_id
+      WHERE eq.torneo_id = :tid
+    `, { tid: id });
+
+    // 4) Partidos de eliminación
+    await conn.execute(`
       DELETE em
       FROM elim_matches em
       JOIN eliminatorias e ON e.id = em.eliminatoria_id
       WHERE e.torneo_id = :tid
-      `,
-      { tid: id }
-    );
+    `, { tid: id });
 
-    // 4) Borrar configuración de rondas
-    await conn.execute(
-      `
+    // 5) Config de rondas
+    await conn.execute(`
       DELETE er
       FROM elim_rounds er
       JOIN eliminatorias e ON e.id = er.eliminatoria_id
       WHERE e.torneo_id = :tid
-      `,
-      { tid: id }
-    );
+    `, { tid: id });
 
-    // 5) Borrar cabecera de eliminatorias
-    await conn.execute(
-      `DELETE FROM eliminatorias WHERE torneo_id = :tid`,
-      { tid: id }
-    );
+    // 6) Cabecera eliminatorias
+    await conn.execute(`DELETE FROM eliminatorias WHERE torneo_id = :tid`, { tid: id });
 
-    // 6) Borrar torneo
-    // Lo demás cae por ON DELETE CASCADE:
-    // jornadas -> partidos -> partido_detalle, equipos -> jugadores,
-    // torneo_franjas, torneo_canchas, etc.
-    await conn.execute(
-      `DELETE FROM torneos WHERE id = :tid`,
-      { tid: id }
-    );
+    // --- LIGUILLA (liga) ----------------------------------------------------
+    // 7) Detalle de partido por PARTIDO (más seguro que confiar en cascada múltiple)
+    await conn.execute(`
+      DELETE pd
+      FROM partido_detalle pd
+      JOIN partidos p ON p.id = pd.partido_id
+      JOIN jornadas j ON j.id = p.jornada_id
+      WHERE j.torneo_id = :tid
+    `, { tid: id });
+
+    // 8) Detalle de partido por JUGADOR (cubre cualquier rezago)
+    await conn.execute(`
+      DELETE pd
+      FROM partido_detalle pd
+      JOIN jugadores j  ON j.id = pd.jugador_id
+      JOIN equipos   eq ON eq.id = j.equipo_id
+      WHERE eq.torneo_id = :tid
+    `, { tid: id });
+
+    // 9) Partidos
+    await conn.execute(`
+      DELETE p
+      FROM partidos p
+      JOIN jornadas j ON j.id = p.jornada_id
+      WHERE j.torneo_id = :tid
+    `, { tid: id });
+
+    // 10) Jornadas
+    await conn.execute(`DELETE FROM jornadas WHERE torneo_id = :tid`, { tid: id });
+
+    // --- EQUIPOS / JUGADORES ----------------------------------------------
+    // 11) Jugadores
+    await conn.execute(`
+      DELETE j
+      FROM jugadores j
+      JOIN equipos e ON e.id = j.equipo_id
+      WHERE e.torneo_id = :tid
+    `, { tid: id });
+
+    // 12) Equipos
+    await conn.execute(`DELETE FROM equipos WHERE torneo_id = :tid`, { tid: id });
+
+    // --- CONFIG DEL TORNEO --------------------------------------------------
+    // 13) Franjas y canchas
+    await conn.execute(`DELETE FROM torneo_franjas WHERE torneo_id = :tid`, { tid: id });
+    await conn.execute(`DELETE FROM torneo_canchas  WHERE torneo_id = :tid`, { tid: id });
+
+    // 14) Torneo
+    await conn.execute(`DELETE FROM torneos WHERE id = :tid`, { tid: id });
 
     await conn.commit();
   } catch (e) {
-    try { await conn.rollback(); } catch(_) {}
+    try { await conn.rollback(); } catch (_) {}
     throw e;
   } finally {
     conn.release();
