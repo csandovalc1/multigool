@@ -232,8 +232,80 @@ async function setFase(torneo_id, fase) {
 
 async function eliminarTorneo(id) {
   const pool = await getPool();
-  await pool.execute('DELETE FROM torneos WHERE id=:id', { id });
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1) Romper referencias self-FK de elim_matches
+    await conn.execute(
+      `
+      UPDATE elim_matches em
+      JOIN eliminatorias e ON e.id = em.eliminatoria_id
+      SET em.next_match_id = NULL,
+          em.parent_match_id = NULL
+      WHERE e.torneo_id = :tid
+      `,
+      { tid: id }
+    );
+
+    // 2) Borrar detalle de partidos de eliminación
+    await conn.execute(
+      `
+      DELETE epd
+      FROM elim_partido_detalle epd
+      JOIN elim_matches em   ON em.id = epd.match_id
+      JOIN eliminatorias e   ON e.id = em.eliminatoria_id
+      WHERE e.torneo_id = :tid
+      `,
+      { tid: id }
+    );
+
+    // 3) Borrar partidos de eliminación
+    await conn.execute(
+      `
+      DELETE em
+      FROM elim_matches em
+      JOIN eliminatorias e ON e.id = em.eliminatoria_id
+      WHERE e.torneo_id = :tid
+      `,
+      { tid: id }
+    );
+
+    // 4) Borrar configuración de rondas
+    await conn.execute(
+      `
+      DELETE er
+      FROM elim_rounds er
+      JOIN eliminatorias e ON e.id = er.eliminatoria_id
+      WHERE e.torneo_id = :tid
+      `,
+      { tid: id }
+    );
+
+    // 5) Borrar cabecera de eliminatorias
+    await conn.execute(
+      `DELETE FROM eliminatorias WHERE torneo_id = :tid`,
+      { tid: id }
+    );
+
+    // 6) Borrar torneo
+    // Lo demás cae por ON DELETE CASCADE:
+    // jornadas -> partidos -> partido_detalle, equipos -> jugadores,
+    // torneo_franjas, torneo_canchas, etc.
+    await conn.execute(
+      `DELETE FROM torneos WHERE id = :tid`,
+      { tid: id }
+    );
+
+    await conn.commit();
+  } catch (e) {
+    try { await conn.rollback(); } catch(_) {}
+    throw e;
+  } finally {
+    conn.release();
+  }
 }
+
 
 /* =========================
    Crear Fixture (Liguilla) con agenda
